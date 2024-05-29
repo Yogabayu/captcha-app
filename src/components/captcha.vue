@@ -1,6 +1,8 @@
 <template>
   <div class="captcha-container">
-    <div id="captcha" v-html="captchaHtml"></div>
+    <div id="captcha">
+      <img :src="captchaImageUrl" alt="CAPTCHA Image" v-if="captchaImageUrl" />
+    </div>
     <button @click="fetchCaptcha">Refresh CAPTCHA</button>
     <input id="txtnopol" @keypress="focusNextField($event, 'txtcaptcha')" />
     <input id="txtcaptcha" @keypress="focusNextField($event, 'btncari')" />
@@ -14,20 +16,46 @@ import axios from 'axios';
 export default {
   data() {
     return {
-      captchaHtml: '',
+      captchaImageUrl: '',
     };
   },
   methods: {
+    // async fetchCaptcha() {
+    //   try {
+    //     const response = await axios.post('https://thingproxy.freeboard.io/fetch/https://info.dipendajatim.go.id/logic_pkb.php?act=captcha');
+    //     if (response.headers['content-type'].includes('text/html')) {
+    //       const parser = new DOMParser();
+    //       const doc = parser.parseFromString(response.data, 'text/html');
+    //       const captchaImgElement = doc.querySelector('img');
+          
+    //       if (captchaImgElement) {
+    //         const relativeUrl = captchaImgElement.getAttribute('src');
+    //         this.captchaImageUrl = 'https://thingproxy.freeboard.io/fetch/https://info.dipendajatim.go.id' + relativeUrl;
+    //       }
+    //     } else {
+    //       console.error('Unexpected content type:', response.headers['content-type']);
+    //     }
+    //   } catch (error) {
+    //     console.error('Error fetching CAPTCHA:', error);
+    //   }
+    // },
     async fetchCaptcha() {
       try {
-        const response = await axios.post('https://info.dipendajatim.go.id/logic_pkb.php?act=captcha', {}, {
-          headers: {
-            'Accept': 'text/html',
-          },
-        });
-        // Check if the response is in HTML format
+        // Gunakan Thingproxy untuk menghindari CORS
+        const proxyUrl = 'https://thingproxy.freeboard.io/fetch/';
+        const targetUrl = 'https://info.dipendajatim.go.id/logic_pkb.php?act=captcha';
+        const response = await axios.post(`${proxyUrl}${targetUrl}`);
+        
         if (response.headers['content-type'].includes('text/html')) {
-          this.captchaHtml = response.data;
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(response.data, 'text/html');
+          const captchaImgElement = doc.querySelector('img');
+          
+          if (captchaImgElement) {
+            const relativeUrl = captchaImgElement.getAttribute('src');
+            // Tambahkan prefix Thingproxy ke URL relatif gambar CAPTCHA
+            this.captchaImageUrl = `${proxyUrl}https://info.dipendajatim.go.id${relativeUrl}`;
+          }
         } else {
           console.error('Unexpected content type:', response.headers['content-type']);
         }
@@ -36,7 +64,7 @@ export default {
       }
     },
     focusNextField(event, nextFieldId) {
-      if (event.keyCode === 13) {
+      if (event.key === 'Enter') {
         this.$nextTick(() => {
           const nextField = this.$el.querySelector(`#${nextFieldId}`);
           if (nextField) {
